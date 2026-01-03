@@ -90,7 +90,6 @@ export default function App() {
 
   const handleSaveProfile = async () => {
     if (isEditingArchive) {
-      // 正在从编辑切换回展示，执行保存
       await DBService.updateProfile(profile);
     }
     setIsEditingArchive(!isEditingArchive);
@@ -208,7 +207,7 @@ export default function App() {
         {activeTab === 'tools' && (
           <div className="space-y-8 pb-40 animate-in fade-in duration-500">
              <div className="px-1">
-                <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">病情管理工具</h2>
+                <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">病情 management 工具</h2>
              </div>
              <div className="grid grid-cols-1 gap-5">
                 <CategoryCard icon={BookOpen} label="诊疗指南" desc="最新权威指南总结" color="bg-blue-50 text-blue-600" />
@@ -239,7 +238,14 @@ export default function App() {
       </main>
 
       <Dock activeTab={activeTab} onTabChange={setActiveTab} onOpenAI={() => setIsAiOpen(true)} seniorMode={seniorMode} />
-      <AssistantModal isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} isLive={isLiveActive} onToggleLive={toggleLiveAI} onFileUpload={handleFileUpload} />
+      <AssistantModal 
+        isOpen={isAiOpen} 
+        onClose={() => setIsAiOpen(false)} 
+        isLive={isLiveActive} 
+        onToggleLive={toggleLiveAI} 
+        onFileUpload={handleFileUpload}
+        userProfile={profile}
+      />
       {isParsing && <FullscreenLoader label="数据解析同步中..." />}
     </div>
   );
