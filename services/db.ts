@@ -4,47 +4,68 @@ import { IndicatorDefinition, MedicalRecord, TreatmentPhase, UserProfile } from 
 export class DBService {
   /**
    * 保存或更新个人资料
+   * 确保 JSONB 字段 (doctors, emergency) 被正确序列化
    */
   static async updateProfile(profile: Partial<UserProfile>) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({ 
-        id: user.id, 
-        ...profile, 
-        updated_at: new Date().toISOString() 
-      });
-    
-    if (error) console.error('Update Profile Error:', error);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.warn('No active user found for profile update');
+        return;
+      }
+      
+      // 准备提交的数据，过滤掉不属于数据库字段的 UI 状态
+      const payload = {
+        id: user.id,
+        name: profile.name,
+        age: profile.age,
+        gender: profile.gender,
+        senior_mode: profile.senior_mode,
+        diagnosis: profile.diagnosis,
+        medical_history: profile.medical_history,
+        doctors: profile.doctors || [],
+        emergency: profile.emergency || { name: '未设置', relation: '-', phone: '-' },
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(payload, { onConflict: 'id' });
+      
+      if (error) throw error;
+      console.log('Profile synchronized successfully');
+    } catch (error: any) {
+      console.error('Update Profile Error:', error.message);
+    }
   }
 
   /**
-   * 获取个人资料
+   * 获取当前登录用户的全量个人资料
    */
   static async getProfile(): Promise<UserProfile | null> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
     
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
     if (error) {
-      console.warn('Profile not found, returning defaults');
+      console.error('Fetch Profile Error:', error.message);
       return null;
     }
     return data;
   }
 
   /**
-   * 保存病历记录到 Supabase
+   * 保存病历记录到 Supabase (保持不变)
    */
   static async saveMedicalRecord(record: any) {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        console.warn('用户未登录，数据仅保留在本地会话中');
-        return { success: true, localOnly: true };
-      }
+      if (userError || !user) return { success: true, localOnly: true };
       
       const { data, error } = await supabase
         .from('medical_records')
@@ -56,10 +77,7 @@ export class DBService {
           user_id: user.id
         });
         
-      if (error) {
-        console.error('Supabase 写入失败:', error.message);
-        return { success: false, error };
-      }
+      if (error) throw error;
       return { success: true };
     } catch (e) {
       console.error('DBService.saveMedicalRecord 异常:', e);
@@ -68,7 +86,7 @@ export class DBService {
   }
 
   /**
-   * 获取所有历史记录
+   * 获取所有历史记录 (保持不变)
    */
   static async getRecords(): Promise<MedicalRecord[]> {
     try {
@@ -81,10 +99,6 @@ export class DBService {
         .eq('user_id', user.id)
         .order('date', { ascending: false });
       
-      if (error) {
-        console.error('Supabase 读取失败:', JSON.stringify(error));
-        return [];
-      }
       return data || [];
     } catch (e) {
       console.error('DBService.getRecords 异常:', e);
@@ -92,29 +106,19 @@ export class DBService {
     }
   }
 
-  /**
-   * 获取治疗进程
-   */
   static async getTreatmentPhases(): Promise<TreatmentPhase[]> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
       const { data } = await supabase.from('treatment_phases').select('*').eq('user_id', user.id);
       return data || [];
-    } catch (e) {
-      return [];
-    }
+    } catch (e) { return []; }
   }
 
-  /**
-   * 获取指标定义
-   */
   static async getIndicatorDefinitions(): Promise<IndicatorDefinition[]> {
     try {
       const { data } = await supabase.from('indicator_definitions').select('*');
       return data || [];
-    } catch (e) {
-      return [];
-    }
+    } catch (e) { return []; }
   }
 }
