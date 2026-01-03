@@ -9,9 +9,15 @@ export class DBService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     
-    await supabase
+    const { error } = await supabase
       .from('profiles')
-      .upsert({ id: user.id, ...profile, updated_at: new Date().toISOString() });
+      .upsert({ 
+        id: user.id, 
+        ...profile, 
+        updated_at: new Date().toISOString() 
+      });
+    
+    if (error) console.error('Update Profile Error:', error);
   }
 
   /**
@@ -21,7 +27,11 @@ export class DBService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
     
-    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (error) {
+      console.warn('Profile not found, returning defaults');
+      return null;
+    }
     return data;
   }
 

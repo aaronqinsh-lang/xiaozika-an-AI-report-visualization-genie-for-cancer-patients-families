@@ -6,9 +6,8 @@ import { AssistantModal } from './components/AssistantModal';
 import { CategoryCard } from './components/CategoryCard';
 import { AuthView } from './components/Auth';
 import { GeminiService, DBService, MemoryService, supabase } from './services';
-// Fixed: Removed missing exports CSV_TEMPLATE_HEADER and CSV_TEMPLATE_EXAMPLE which are not used in this file
 import { INITIAL_RECORDS } from './constants';
-import { MedicalRecord, DashboardWidget, HealthArchive, TreatmentPhase, UserProfile } from './types';
+import { MedicalRecord, DashboardWidget, UserProfile, TreatmentPhase } from './types';
 import { float32ToPcm, decodeAudioBuffer, decodeBase64 } from './utils';
 import { BookOpen, Pill, Users, Calendar, ArrowRight, HeartPulse, LogOut, Download, Upload, FileSpreadsheet, RotateCcw } from 'lucide-react';
 
@@ -27,14 +26,16 @@ export default function App() {
   const [widgets, setWidgets] = useState<DashboardWidget[]>([
     { id: 'w1', title: '核心指标趋势', type: 'line', metrics: ['CEA', 'CA199'], isPinned: true },
   ]);
-  const [archive, setArchive] = useState<HealthArchive>({
+  const [profile, setProfile] = useState<UserProfile>({
+    id: '',
     name: "加载中...",
     age: 0,
     gender: "保密",
+    senior_mode: false,
     diagnosis: "尚未录入",
-    medicalHistory: "请上传您的第一份报告开始建立档案。",
+    medical_history: "正在从云端同步您的健康档案...",
     doctors: [],
-    emergency: { name: '尚未设置', relation: '-', phone: '-' }
+    emergency: { name: '未设置', relation: '-', phone: '-' }
   });
 
   const sessionRef = useRef<any>(null);
@@ -64,7 +65,7 @@ export default function App() {
 
   const fetchUserData = async () => {
     try {
-      const [dbRecords, dbPhases, profile] = await Promise.all([
+      const [dbRecords, dbPhases, dbProfile] = await Promise.all([
         DBService.getRecords(),
         DBService.getTreatmentPhases(),
         DBService.getProfile()
@@ -72,14 +73,9 @@ export default function App() {
       
       if (dbRecords && dbRecords.length > 0) setRecords(dbRecords);
       setPhases(dbPhases);
-      if (profile) {
-        setSeniorMode(profile.senior_mode);
-        setArchive(prev => ({
-          ...prev,
-          name: profile.name || prev.name,
-          diagnosis: profile.diagnosis || prev.diagnosis,
-          medicalHistory: profile.medical_history || prev.medicalHistory
-        }));
+      if (dbProfile) {
+        setProfile(dbProfile);
+        setSeniorMode(dbProfile.senior_mode);
       }
     } catch (e) {
       console.error("Failed to fetch user data:", e);
@@ -90,6 +86,14 @@ export default function App() {
     const newMode = !seniorMode;
     setSeniorMode(newMode);
     await DBService.updateProfile({ senior_mode: newMode });
+  };
+
+  const handleSaveProfile = async () => {
+    if (isEditingArchive) {
+      // 正在从编辑切换回展示，执行保存
+      await DBService.updateProfile(profile);
+    }
+    setIsEditingArchive(!isEditingArchive);
   };
 
   const toggleLiveAI = async () => {
@@ -157,6 +161,7 @@ export default function App() {
           id: Date.now().toString(),
           date: res.date || new Date().toISOString().split('T')[0],
           type: res.type || 'Blood',
+          hospital: res.hospital || '未知医院',
           indicators: res.indicators || {}
         };
         await DBService.saveMedicalRecord(newRec);
@@ -192,10 +197,12 @@ export default function App() {
         )}
         {activeTab === 'archive' && (
           <ArchiveView 
-            archive={archive} 
+            profile={profile} 
+            records={records}
             isEditing={isEditingArchive}
-            onToggleEdit={() => setIsEditingArchive(!isEditingArchive)}
-            onUpdateArchive={setArchive}
+            onToggleEdit={handleSaveProfile}
+            onUpdateProfile={setProfile}
+            seniorMode={seniorMode}
           />
         )}
         {activeTab === 'tools' && (

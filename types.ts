@@ -30,16 +30,6 @@ export interface TreatmentPhase {
   color: string;
 }
 
-export interface HealthArchive {
-  name: string;
-  age: number;
-  gender: string;
-  diagnosis: string;
-  medicalHistory: string;
-  doctors: Doctor[];
-  emergency: EmergencyContact;
-}
-
 export interface Doctor {
   id: string;
   name: string;
@@ -51,6 +41,23 @@ export interface EmergencyContact {
   name: string;
   relation: string;
   phone: string;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  age: number;
+  gender: string;
+  senior_mode: boolean;
+  diagnosis?: string;
+  medical_history?: string;
+  doctors?: Doctor[];
+  emergency?: EmergencyContact;
+}
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  content: string;
 }
 
 export interface DashboardWidget {
@@ -68,17 +75,4 @@ export interface MonitoringScenario {
   description: string;
   icon: string;
   color?: string;
-}
-
-export interface UserProfile {
-  id: string;
-  name: string;
-  senior_mode: boolean;
-  diagnosis?: string;
-  medical_history?: string;
-}
-
-export interface ChatMessage {
-  role: 'user' | 'model';
-  content: string;
 }
