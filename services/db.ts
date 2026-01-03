@@ -4,17 +4,16 @@ import { IndicatorDefinition, MedicalRecord, TreatmentPhase, UserProfile } from 
 export class DBService {
   /**
    * 保存或更新个人资料
-   * 确保 JSONB 字段 (doctors, emergency) 被正确序列化
+   * 包含对 JSONB 字段 (doctors, emergency) 的支持
    */
   static async updateProfile(profile: Partial<UserProfile>) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.warn('No active user found for profile update');
+        console.warn('未发现登录用户，无法更新档案');
         return;
       }
       
-      // 准备提交的数据，过滤掉不属于数据库字段的 UI 状态
       const payload = {
         id: user.id,
         name: profile.name,
@@ -23,8 +22,8 @@ export class DBService {
         senior_mode: profile.senior_mode,
         diagnosis: profile.diagnosis,
         medical_history: profile.medical_history,
-        doctors: profile.doctors || [],
-        emergency: profile.emergency || { name: '未设置', relation: '-', phone: '-' },
+        doctors: profile.doctors || [], // 确认为数组
+        emergency: profile.emergency || { name: '未设置', relation: '-', phone: '-' }, // 确认为对象
         updated_at: new Date().toISOString()
       };
 
@@ -33,41 +32,43 @@ export class DBService {
         .upsert(payload, { onConflict: 'id' });
       
       if (error) throw error;
-      console.log('Profile synchronized successfully');
+      console.log('云端档案同步成功');
     } catch (error: any) {
-      console.error('Update Profile Error:', error.message);
+      console.error('档案同步失败:', error.message);
     }
   }
 
   /**
-   * 获取当前登录用户的全量个人资料
+   * 获取当前用户的全量档案
    */
   static async getProfile(): Promise<UserProfile | null> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-    
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
 
-    if (error) {
-      console.error('Fetch Profile Error:', error.message);
+      if (error) throw error;
+      return data;
+    } catch (error: any) {
+      console.error('档案获取失败:', error.message);
       return null;
     }
-    return data;
   }
 
   /**
-   * 保存病历记录到 Supabase (保持不变)
+   * 保存病历记录 (化验单)
    */
   static async saveMedicalRecord(record: any) {
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) return { success: true, localOnly: true };
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: true, localOnly: true };
       
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('medical_records')
         .insert({ 
           date: record.date,
@@ -80,18 +81,18 @@ export class DBService {
       if (error) throw error;
       return { success: true };
     } catch (e) {
-      console.error('DBService.saveMedicalRecord 异常:', e);
+      console.error('记录保存异常:', e);
       return { success: false, error: e };
     }
   }
 
   /**
-   * 获取所有历史记录 (保持不变)
+   * 获取所有历史病历记录
    */
   static async getRecords(): Promise<MedicalRecord[]> {
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) return [];
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
 
       const { data, error } = await supabase
         .from('medical_records')
@@ -101,7 +102,7 @@ export class DBService {
       
       return data || [];
     } catch (e) {
-      console.error('DBService.getRecords 异常:', e);
+      console.error('记录获取异常:', e);
       return [];
     }
   }

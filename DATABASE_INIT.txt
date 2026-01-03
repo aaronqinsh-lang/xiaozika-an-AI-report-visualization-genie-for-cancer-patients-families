@@ -1,31 +1,24 @@
 -- ==========================================
--- 小紫卡数据库初始化全量脚本 (3.1 增强版)
+-- 小紫卡数据库初始化与结构修复脚本 (v3.3)
 -- ==========================================
 
--- 1. 扩展个人档案表
+-- 1. 确保 profiles 表存在
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-  name TEXT DEFAULT '新患者',
-  age INTEGER DEFAULT 60,
-  gender TEXT DEFAULT '男',
-  senior_mode BOOLEAN DEFAULT FALSE,
-  diagnosis TEXT DEFAULT '未录入',
-  medical_history TEXT DEFAULT '暂无既往病史描述',
-  doctors JSONB DEFAULT '[]'::jsonb,
-  emergency JSONB DEFAULT '{"name": "未设置", "relation": "-", "phone": "-"}'::jsonb,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. 指标定义 (保持不变)
-CREATE TABLE IF NOT EXISTS public.indicator_definitions (
-  code TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  category TEXT NOT NULL,
-  unit TEXT,
-  ref_range TEXT
-);
+-- 2. 核心：强制补全缺失的列 (解决 "column does not exist" 报错)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS name TEXT DEFAULT '新患者';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS age INTEGER DEFAULT 60;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS gender TEXT DEFAULT '男';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS senior_mode BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS diagnosis TEXT DEFAULT '未录入';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS medical_history TEXT DEFAULT '暂无既往病史描述';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS doctors JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS emergency JSONB DEFAULT '{"name": "未设置", "relation": "-", "phone": "-"}'::jsonb;
 
--- 3. 结构化病历记录表
+-- 3. 结构化病历记录表 (化验单数据)
 CREATE TABLE IF NOT EXISTS public.medical_records (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
@@ -36,7 +29,7 @@ CREATE TABLE IF NOT EXISTS public.medical_records (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. 治疗方案阶段表
+-- 4. 治疗方案进程表
 CREATE TABLE IF NOT EXISTS public.treatment_phases (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
@@ -46,21 +39,23 @@ CREATE TABLE IF NOT EXISTS public.treatment_phases (
   color TEXT DEFAULT '#7C3AED'
 );
 
--- 权限策略
+-- 5. 开启行级安全策略 (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.medical_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.treatment_phases ENABLE ROW LEVEL SECURITY;
 
--- 只有用户自己可以操作自己的数据
+-- 6. 配置权限策略
 DO $$ 
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can see their own data') THEN
-    CREATE POLICY "Users can see their own data" ON public.profiles FOR ALL USING (auth.uid() = id);
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Profiles Access') THEN
+    CREATE POLICY "Profiles Access" ON public.profiles FOR ALL USING (auth.uid() = id);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can manage their own records') THEN
-    CREATE POLICY "Users can manage their own records" ON public.medical_records FOR ALL USING (auth.uid() = user_id);
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Records Access') THEN
+    CREATE POLICY "Records Access" ON public.medical_records FOR ALL USING (auth.uid() = user_id);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can manage their phases') THEN
-    CREATE POLICY "Users can manage their phases" ON public.treatment_phases FOR ALL USING (auth.uid() = user_id);
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Phases Access') THEN
+    CREATE POLICY "Phases Access" ON public.treatment_phases FOR ALL USING (auth.uid() = user_id);
   END IF;
 END $$;

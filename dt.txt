@@ -1,0 +1,60 @@
+-- ==========================================
+-- 小紫卡档案数据自愈式注入脚本 (dt.txt)
+-- 功能：自动修复表结构 + 注入张老伯深度模拟数据
+-- ==========================================
+
+DO $$
+DECLARE
+    v_user_id UUID;
+BEGIN
+    -- 1. 结构自愈：强制补全 profiles 表可能缺失的列
+    -- 使用 EXECUTE 避免 PL/pgSQL 编译时的静态列检查错误
+    EXECUTE 'ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS name TEXT DEFAULT ''新患者''';
+    EXECUTE 'ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS age INTEGER DEFAULT 60';
+    EXECUTE 'ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS gender TEXT DEFAULT ''男''';
+    EXECUTE 'ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS senior_mode BOOLEAN DEFAULT FALSE';
+    EXECUTE 'ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS diagnosis TEXT DEFAULT ''未录入''';
+    EXECUTE 'ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS medical_history TEXT DEFAULT ''暂无既往病史描述''';
+    EXECUTE 'ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS doctors JSONB DEFAULT ''[]''::jsonb';
+    EXECUTE 'ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS emergency JSONB DEFAULT ''{"name": "未设置", "relation": "-", "phone": "-"}''::jsonb';
+
+    -- 2. 获取当前已登录的用户 ID
+    SELECT id INTO v_user_id FROM auth.users LIMIT 1;
+
+    IF v_user_id IS NULL THEN
+        RAISE EXCEPTION '未发现用户记录。请务必先在 App 界面完成“一键登录”，然后再在 SQL 编辑器运行此脚本。';
+    END IF;
+
+    -- 3. 注入模拟数据 (使用动态 SQL 以确保在列刚刚创建后能被正确识别)
+    EXECUTE format(
+        'INSERT INTO public.profiles (
+            id, name, age, gender, diagnosis, medical_history, doctors, emergency
+        ) VALUES (
+            %L, %L, %L, %L, %L, %L, %L, %L
+        ) ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            age = EXCLUDED.age,
+            gender = EXCLUDED.gender,
+            diagnosis = EXCLUDED.diagnosis,
+            medical_history = EXCLUDED.medical_history,
+            doctors = EXCLUDED.doctors,
+            emergency = EXCLUDED.emergency,
+            updated_at = NOW()',
+        v_user_id,
+        '张老伯',
+        68,
+        '男',
+        '肺腺癌 (EGFR L858R+)',
+        '2024年7月确诊。目前采用奥希替尼靶向治疗，每日一次。有高血压病史，对青霉素过敏，近期关注中性粒细胞波动。',
+        -- 医生团队数据
+        '[
+            {"id": "doc_1", "name": "陈主任", "specialty": "肿瘤内科 / 首席专家", "contact": "13911112222"},
+            {"id": "doc_2", "name": "刘教授", "specialty": "影像诊断科 / 主治", "contact": "13833334444"},
+            {"id": "doc_3", "name": "王护士长", "specialty": "临床护理与营养", "contact": "13755556666"}
+        ]',
+        -- 紧急联系人数据
+        '{"name": "张小悦", "relation": "女儿", "phone": "18600001111"}'
+    );
+
+    RAISE NOTICE '数据注入成功！已自动补全缺失字段并同步张老伯的医生团队与 SOS 联系人。';
+END $$;
