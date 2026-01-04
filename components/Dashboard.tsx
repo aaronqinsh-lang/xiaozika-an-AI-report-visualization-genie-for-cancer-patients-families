@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, Legend, ReferenceArea
-} from 'https://esm.sh/recharts@3.6.0';
+} from 'recharts';
 import { 
   Trash2, Plus, TrendingUp, ChevronRight, Activity, 
   ShieldAlert, Thermometer, Droplet, Stethoscope, Maximize2 
-} from 'https://esm.sh/lucide-react@0.562.0';
+} from 'lucide-react';
 import { DashboardWidget, MedicalRecord, MonitoringScenario, TreatmentPhase } from '../types';
 
 const SCENARIOS: MonitoringScenario[] = [

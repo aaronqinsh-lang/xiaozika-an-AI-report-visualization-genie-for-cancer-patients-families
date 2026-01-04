@@ -1,22 +1,21 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * 安全获取环境变量的辅助函数
  */
 const getEnv = (key: string): string | undefined => {
-  // Removed import.meta.env check to resolve TypeScript errors in environments without import.meta.env types
   if (typeof process !== 'undefined' && process.env && process.env[key]) {
     return process.env[key];
   }
   return undefined;
 };
 
+// 如果环境变量未生效，使用默认提供的项目地址和 Anon Key
 const supabaseUrl = getEnv('VITE_SUPABASE_URL') || 'https://wpgsdyiwzfcsfyimmbje.supabase.co';
 const supabaseKey = getEnv('VITE_SUPABASE_ANON_KEY') || 'sb_publishable_p3ccwxyoDqO6wBqcemVK7A_RWVNQ3HR';
 
-if (!supabaseUrl || !supabaseKey) {
-  console.warn('Supabase 配置缺失，应用将运行在本地模拟模式。');
+if (!getEnv('VITE_SUPABASE_URL')) {
+  console.log('环境变量注入检查中，当前使用硬编码兜底配置。');
 }
 
-// 导出客户端实例，增加防御性导出
 export const supabase = createClient(supabaseUrl, supabaseKey);

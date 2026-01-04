@@ -1,7 +1,6 @@
-import { GoogleGenAI, Modality } from "https://esm.sh/@google/genai@1.34.0";
+import { GoogleGenAI, Modality } from "@google/genai";
 
 export class GeminiService {
-  // Use process.env.API_KEY exclusively for initialization to avoid import.meta errors and follow SDK guidelines
   private static initAI() {
     return new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
@@ -38,7 +37,6 @@ export class GeminiService {
         }
       });
       
-      // Correctly access generated text directly via the .text property
       const text = response.text;
       if (!text) throw new Error("识别失败");
       return JSON.parse(text);
