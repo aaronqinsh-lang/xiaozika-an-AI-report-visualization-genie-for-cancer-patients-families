@@ -152,19 +152,19 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
               <div className="flex justify-start">
                 <div className="bg-white/5 border border-white/10 p-5 rounded-[2.2rem] rounded-tl-lg flex items-center gap-3">
                   <Loader2 size={16} className="animate-spin text-purple-400" />
-                  <span className="text-xs text-purple-400 font-black uppercase tracking-[0.2em]">正在深度解析您的化验单...</span>
+                  <span className="text-xs text-purple-400 font-black uppercase tracking-[0.2em]">正在分析化验趋势...</span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* 输入框区 - 优化为无边框效果 */}
+          {/* 输入框区 - 无边框设计 */}
           <div className="px-8 pb-12 pt-4 bg-[#0A001A]/90 backdrop-blur-3xl border-t border-white/5">
             <div className="flex items-center gap-3 bg-white/[0.04] p-2 rounded-[2.5rem] transition-all hover:bg-white/[0.06] group focus-within:bg-white/[0.08]">
               <input 
                 type="text"
                 placeholder="在此输入您的疑问..."
-                className="flex-1 bg-transparent border-none focus:ring-0 px-6 py-4 text-base font-medium placeholder:text-gray-600"
+                className="flex-1 bg-transparent border-none focus:ring-0 px-6 py-4 text-base font-medium placeholder:text-gray-600 focus:outline-none"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -172,7 +172,7 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
               <button 
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isTyping}
-                className="w-14 h-14 bg-purple-600 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-all disabled:opacity-30 disabled:bg-gray-800 disabled:scale-100"
+                className="w-14 h-14 bg-purple-600 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-all disabled:opacity-30 disabled:bg-gray-800"
               >
                 <Send size={22} />
               </button>
